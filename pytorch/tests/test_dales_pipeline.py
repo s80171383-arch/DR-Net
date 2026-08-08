@@ -7,7 +7,7 @@ import pytest
 from helper_ply import write_ply
 from pytorch.datasets.dales import (DALESCloudStore, DALESSpatiallyRegularDataset,
                             make_dales_dataloader)
-from datasets.verify_dales import main as verify_main
+from pytorch.datasets.verify_dales import main as verify_main
 
 
 class FixtureKDTree:
