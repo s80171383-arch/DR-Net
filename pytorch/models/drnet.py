@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 from .blocks import LEAKY_RELU_SLOPE, ConvBNAct, DilatedResidualBlock, init_tf_conv_, random_sample
-from utils.interpolation import semantic_query
-from utils.knn import knn_search
-from utils.augmentation import ChannelAttention, prepare_training_batch
+from ..utils.interpolation import semantic_query
+from ..utils.knn import knn_search
+from ..utils.augmentation import ChannelAttention, prepare_training_batch
 
 
 class DRNet(nn.Module):

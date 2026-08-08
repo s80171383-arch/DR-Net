@@ -1,9 +1,9 @@
 import torch
 from torch import nn
-from models.blocks import LEAKY_RELU_SLOPE, BuildingBlock, ConvBNAct
-from models.drnet import DRNet
-from utils.knn import build_hierarchy
-from utils.interpolation import semantic_query
+from pytorch.models.blocks import LEAKY_RELU_SLOPE, BuildingBlock, ConvBNAct
+from pytorch.models.drnet import DRNet
+from pytorch.utils.knn import build_hierarchy
+from pytorch.utils.interpolation import semantic_query
 
 def test_k12_is_unused():
     torch.manual_seed(1); b = BuildingBlock(4,16).eval()

@@ -1,6 +1,6 @@
 import torch
-from utils.augmentation import ChannelAttention, ROTATION_CONSTANT, augment_features, prepare_training_batch, rotation_matrix_y
-from utils.knn import build_hierarchy
+from pytorch.utils.augmentation import ChannelAttention, ROTATION_CONSTANT, augment_features, prepare_training_batch, rotation_matrix_y
+from pytorch.utils.knn import build_hierarchy
 
 def test_batch_doubling_and_graph_copy():
     x=torch.randn(2,32,3); anno=x[:,:4]; h=build_hierarchy(x,[4])
