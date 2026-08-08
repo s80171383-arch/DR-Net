@@ -1,4 +1,4 @@
-from models.blocks import gather_neighbour
+from ..models.blocks import gather_neighbour
 
 
 def semantic_query(features, neighbour_idx, distances=None):
