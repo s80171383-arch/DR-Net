@@ -1,0 +1,10 @@
+compatibility_mode: true
+num_classes: 8
+num_layers: 5
+k_n: 16
+k_nn1: 8
+k_nn2: 12
+sub_sampling_ratio: [4, 4, 4, 4, 2]
+d_out: [16, 64, 128, 256, 512]
+rotation_constant: 3.14592653
+
