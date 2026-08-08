@@ -1,0 +1,29 @@
+name: PyTorch compatibility
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cpu-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pytorch/requirements.txt
+
+      - name: Install CPU compatibility dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r pytorch/requirements.txt
+
+      - name: Run compatibility tests
+        run: python -m pytest -q pytorch/tests
+
+      - name: Run synthetic end-to-end smoke test
+        run: python -m pytorch.train
