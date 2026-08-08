@@ -5,8 +5,8 @@ not a redesign: prefix sampling, the unused K=12 branch, fixed-mean Semantic Que
 non-upsampling 1x1 transposed convolutions, geometry-copying augmentation, DALES
 label mapping, and original loss reductions are deliberately preserved.
 
-Run `pytest -q` and `python train.py` from this directory. Real-data loading, full
-training, TensorFlow checkpoint conversion, and ISPRS support are out of scope.
+Run `pytest -q` and `python train.py` from this directory. Full real-data training,
+TensorFlow checkpoint conversion, and ISPRS support are out of scope.
 
 ## Reference mapping
 
@@ -26,3 +26,28 @@ decoder's `ConvTranspose2d`, where it is restored explicitly.
 
 `compatibility_mode: false` is reserved for a future corrected implementation and
 currently raises `NotImplementedError`, preventing accidental algorithm changes.
+## Stage 3: DALES data pipeline
+
+The real-data loader expects the preprocessing layout produced by the original
+TensorFlow project (data itself must remain outside this repository):
+
+```text
+DALES_ROOT/
+  original_ply/{train,test}/*.ply
+  input_0.320/train/{cloud.ply,cloud_KDTree.pkl}
+  input_0.320/test/{cloud.ply,cloud_KDTree.pkl,cloud_proj.pkl}
+```
+
+Set `data.root` in `configs/dales.yaml`, or validate a location explicitly:
+
+```bash
+python -m pytorch.datasets.verify_dales --data-root /path/to/dales
+```
+
+`DALESCloudStore` loads both author-defined splits without repartitioning.
+`DALESSpatiallyRegularDataset` is an `IterableDataset`, preserving the mutable
+minimum-possibility query state. `make_dales_dataloader` returns dictionaries
+containing `xyz [B,N,3]`, raw labels and source indices `[B,N]`, cloud index/name,
+annotated XYZ `[B,M,3]`, mapped annotated targets `[B,M]`, and the established
+five-level prefix-sampled K16/K8/K12 hierarchy. Use `num_workers=0`; separate
+worker processes would incorrectly create independent possibility states.
