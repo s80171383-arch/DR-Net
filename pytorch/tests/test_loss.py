@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
-from losses import weighted_cross_entropy, combined_loss
-from losses.lovasz import lovasz_softmax, lovasz_softmax_flat
+from pytorch.losses import weighted_cross_entropy, combined_loss
+from pytorch.losses.lovasz import lovasz_softmax, lovasz_softmax_flat
 
 def test_wce_arithmetic_mean_not_weight_sum():
     logits=torch.tensor([[[2.,0.],[0.,2.]]]); target=torch.tensor([[0,1]]); weights=torch.tensor([2.,4.])

@@ -1,5 +1,5 @@
 import torch
-from datasets.dales import NUM_CLASSES, map_dales_labels
+from pytorch.datasets.dales import NUM_CLASSES, map_dales_labels
 
 def test_dales_mapping():
     assert NUM_CLASSES == 8

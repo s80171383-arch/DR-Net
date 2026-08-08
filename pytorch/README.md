@@ -5,7 +5,8 @@ not a redesign: prefix sampling, the unused K=12 branch, fixed-mean Semantic Que
 non-upsampling 1x1 transposed convolutions, geometry-copying augmentation, DALES
 label mapping, and original loss reductions are deliberately preserved.
 
-Run `pytest -q` and `python train.py` from this directory. Real-data loading, full
+From the repository root, run `python -m pytest -q pytorch/tests` and
+`python -m pytorch.train`. Real-data loading, full
 training, TensorFlow checkpoint conversion, and ISPRS support are out of scope.
 
 ## Reference mapping
