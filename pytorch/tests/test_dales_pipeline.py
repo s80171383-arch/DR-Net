@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from helper_ply import write_ply
-from datasets.dales import (DALESCloudStore, DALESSpatiallyRegularDataset,
+from pytorch.datasets.dales import (DALESCloudStore, DALESSpatiallyRegularDataset,
                             make_dales_dataloader)
 from datasets.verify_dales import main as verify_main
 
