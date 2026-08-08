@@ -5,8 +5,13 @@ not a redesign: prefix sampling, the unused K=12 branch, fixed-mean Semantic Que
 non-upsampling 1x1 transposed convolutions, geometry-copying augmentation, DALES
 label mapping, and original loss reductions are deliberately preserved.
 
-Run `pytest -q` and `python train.py` from this directory. Full real-data training,
-TensorFlow checkpoint conversion, and ISPRS support are out of scope.
+From the repository root, run `python -m pytest -q pytorch/tests` and
+`python -m pytorch.train`.
+
+Stage 3 adds the DALES real-data loading, spatially regular sampling,
+sparse annotation, hierarchy construction, and dataset verification pipeline.
+Full DALES training, TensorFlow checkpoint conversion, and ISPRS support
+remain out of scope at this stage.
 
 ## Reference mapping
 

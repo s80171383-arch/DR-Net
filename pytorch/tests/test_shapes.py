@@ -1,8 +1,8 @@
 import torch
-from models import DRNet
-from utils.knn import build_hierarchy
-from datasets.dales import map_dales_labels
-from losses import combined_loss
+from pytorch.models import DRNet
+from pytorch.utils.knn import build_hierarchy
+from pytorch.datasets.dales import map_dales_labels
+from pytorch.losses import combined_loss
 
 def test_synthetic_end_to_end():
     torch.manual_seed(4); b,n,m=1,1024,9
