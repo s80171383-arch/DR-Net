@@ -1,4 +1,7 @@
 compatibility_mode: true
+data:
+  root: null  # Set this or pass --data-root; no machine-specific fallback.
+  sub_grid_size: 0.32
 num_classes: 8
 num_layers: 5
 k_n: 16
@@ -7,4 +10,3 @@ k_nn2: 12
 sub_sampling_ratio: [4, 4, 4, 4, 2]
 d_out: [16, 64, 128, 256, 512]
 rotation_constant: 3.14592653
-
