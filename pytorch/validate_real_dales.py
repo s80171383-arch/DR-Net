@@ -12,6 +12,7 @@ from .losses import combined_loss
 from .models import DRNet
 
 DEFAULT_CONFIG = Path(__file__).with_name("configs") / "dales.yaml"
+HIERARCHY_RATIOS = (4, 4, 4, 4, 2)
 
 
 def _load_config(path):
@@ -171,6 +172,14 @@ def run(args):
                                   ("num-points", args.num_points, num_points)):
         if override is not None:
             print(f"DIAGNOSTIC OVERRIDE --{name}={value}; not equivalent to formal DALES config")
+    hierarchy_points = num_points
+    for ratio in HIERARCHY_RATIOS:
+        hierarchy_points //= ratio
+        if hierarchy_points < 1:
+            raise ValueError(
+                f"num_points={num_points} is too small for the faithful five-level "
+                "DALES hierarchy; every hierarchy level and pool must remain non-empty"
+            )
     if args.device == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("--device cuda requested but CUDA is unavailable")
     store = DALESCloudStore(args.data_root, config["data"]["sub_grid_size"],
@@ -179,13 +188,16 @@ def run(args):
                                    samples_per_epoch=batch_size,
                                    noise_init=config.get("noise_init", 3.5), seed=0)
     batch = next(iter(loader))
-    model = None if args.data_only else DRNet(
+    if args.data_only:
+        return validate_batch(batch, store, loader.dataset)
+
+    model = DRNet(
         num_classes=config["num_classes"], d_out=config["d_out"],
         compatibility_mode=True, num_points=num_points)
     frequencies = torch.as_tensor(store.num_per_class, dtype=torch.float32)
-    if not args.data_only and (frequencies <= 0).any():
+    if (frequencies <= 0).any():
         raise ValueError("training data must contain every DALES class to compute WCE weights")
-    weights = frequencies.sum().sqrt() / frequencies.sqrt() if not args.data_only else None
+    weights = frequencies.sum().sqrt() / frequencies.sqrt()
     try:
         return validate_batch(batch, store, loader.dataset, model=model, device=args.device,
                               learning_rate=config.get("learning_rate", 1e-2), class_weights=weights)

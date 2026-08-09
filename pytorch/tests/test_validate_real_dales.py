@@ -31,7 +31,7 @@ def _fixture(root, count=64):
 def _config(path):
     path.write_text("""compatibility_mode: true
 batch_size: 1
-num_points: 64
+num_points: 1024
 noise_init: 0
 learning_rate: 0.001
 labeled_point: "100%"
@@ -61,13 +61,14 @@ def test_data_only_path(tmp_path, capsys):
 def test_single_batch_helper_and_invalid_failures(tmp_path):
     _fixture(tmp_path)
     store = DALESCloudStore(tmp_path)
-    loader = make_dales_dataloader(store, "training", 1, 64, 1, noise_init=0)
+    loader = make_dales_dataloader(store, "training", 1, 1024, 1, noise_init=0)
     batch = next(iter(loader))
+    assert [level["xyz"].shape[1] for level in batch["hierarchy"]] == [1024, 256, 64, 16, 4]
     assert validate_batch(batch, store, loader.dataset) == {"data_only": True}
-    report = validate_batch(batch, store, loader.dataset, model=DRNet(num_points=64),
+    report = validate_batch(batch, store, loader.dataset, model=DRNet(num_points=1024),
                             class_weights=torch.ones(8))
-    assert report["training logits shape"] == (2, 64, 8)
-    assert report["inference logits shape"] == (1, 64, 8)
+    assert report["training logits shape"] == (2, 1024, 8)
+    assert report["inference logits shape"] == (1, 1024, 8)
     assert report["optimizer.step success"] is True
 
     bad_label = {**batch, "raw_labels": batch["raw_labels"].clone()}
@@ -82,3 +83,12 @@ def test_single_batch_helper_and_invalid_failures(tmp_path):
     bad_float["xyz"][0, 0, 0] = torch.nan
     with pytest.raises(AssertionError, match="NaN or Inf"):
         validate_batch(bad_float, store, loader.dataset)
+
+
+def test_num_points_too_small_for_hierarchy(tmp_path):
+    _fixture(tmp_path)
+    config = tmp_path / "config.yaml"
+    _config(config)
+    with pytest.raises(ValueError, match="num_points=64 is too small.*five-level"):
+        main(["--data-root", str(tmp_path), "--config", str(config),
+              "--num-points", "64", "--data-only"])
