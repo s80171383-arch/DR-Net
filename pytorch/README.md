@@ -1,4 +1,4 @@
-# Faithful PyTorch DR-Net (DALES only)
+# Faithful PyTorch DR-Net
 
 This directory implements the original TensorFlow graph's observed behavior. It is
 not a redesign: prefix sampling, the unused K=12 branch, fixed-mean Semantic Query,
@@ -10,8 +10,44 @@ From the repository root, run `python -m pytest -q pytorch/tests` and
 
 Stage 3 adds the DALES real-data loading, spatially regular sampling,
 sparse annotation, hierarchy construction, and dataset verification pipeline.
-Full DALES training, TensorFlow checkpoint conversion, and ISPRS support
-remain out of scope at this stage.
+Full DALES training and TensorFlow checkpoint conversion remain future work.
+
+## Existing preprocessed ISPRS (Stage 5A)
+
+This path consumes `input_0.450/Area_{1,2}.ply`, both normal and coarse
+KDTrees, and the existing `Area_2_proj.pkl` directly. It does not preprocess or
+require DALES. Read `../ISPRS_AUDIT.md` before server deployment.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r pytorch/requirements.txt
+
+# Strict dataset inspection plus one sampled hierarchy (CPU, no model)
+python -m pytorch.validate_real_isprs --data-root /data/ISPRS --data-only
+
+# One real forward/WCE/Lovasz/backward/optimizer/eval check
+python -m pytorch.validate_real_isprs --data-root /data/ISPRS --device cuda
+
+# Full training
+python -m pytorch.train_isprs --config pytorch/configs/isprs.yaml \
+  --data-root /data/ISPRS --device cuda --output-dir runs/isprs
+
+# Resume
+python -m pytorch.train_isprs --config pytorch/configs/isprs.yaml \
+  --data-root /data/ISPRS --device cuda --output-dir runs/isprs \
+  --resume runs/isprs/checkpoint_last.pt
+
+# Inference, existing projection, and metrics when public labels exist
+python -m pytorch.test_isprs --config pytorch/configs/isprs.yaml \
+  --data-root /data/ISPRS --device cuda \
+  --checkpoint runs/isprs/checkpoint_best.pt --output-dir predictions/isprs
+```
+
+Inference writes `Area_2_subsampled_predictions.npy` and
+`Area_2_projected_predictions.npy`. It explicitly declines to print metrics if
+the projection pickle has no original labels. Paths are CLI arguments and no
+Windows/server path is embedded in code.
 
 ## Reference mapping
 
