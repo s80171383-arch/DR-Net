@@ -17,7 +17,8 @@ HIERARCHY_RATIOS = (4, 4, 4, 4, 2)
 
 def _load_config(path):
     """Read the deliberately simple Stage 2 configuration without a runtime dependency."""
-    result, parents = {}, [(0, result)]
+    result = {}
+    parents = [(0, result)]
     for raw_line in Path(path).read_text(encoding="utf8").splitlines():
         line = raw_line.split("#", 1)[0].rstrip()
         if not line.strip():
