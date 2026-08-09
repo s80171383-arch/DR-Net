@@ -13,8 +13,8 @@ class DRNet(nn.Module):
         super().__init__()
         if not compatibility_mode:
             raise NotImplementedError("Only faithful compatibility mode exists in stage 1")
-        if len(d_out) != 5 or num_classes != 8:
-            raise ValueError("DALES compatibility mode requires five layers and 8 logits")
+        if len(d_out) != 5 or num_classes < 2:
+            raise ValueError("compatibility mode requires five layers and at least two logits")
         self.compatibility_mode = True
         self.channel_attention = ChannelAttention(num_points)
         self.fc0 = ConvBNAct(input_dim, 8, xavier=True)
