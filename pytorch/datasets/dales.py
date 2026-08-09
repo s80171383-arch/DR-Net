@@ -44,6 +44,7 @@ class DALESCloudStore:
         self.input_names: Dict[str, List[str]] = {s: [] for s in SPLITS}
         self.val_proj: List[np.ndarray] = []
         self.val_labels: List[np.ndarray] = []
+        self.num_per_class = np.zeros(NUM_CLASSES, dtype=np.int64)
         self.rng = np.random.default_rng(seed)
         self.labeled_point = str(labeled_point)
         self._load()
@@ -73,6 +74,7 @@ class DALESCloudStore:
                 if points.ndim != 2 or points.shape[1] != 3 or len(points) != len(labels):
                     raise ValueError(f"{tree_path}: tree point count/shape does not match PLY labels")
                 if split == "training":
+                    self.num_per_class += np.bincount(labels, minlength=NUM_CLASSES + 1)[1:9]
                     labels = self._sparsify(labels)
                 self.input_trees[split].append(tree)
                 self.input_labels[split].append(labels)
@@ -129,6 +131,7 @@ class DALESSpatiallyRegularDataset(IterableDataset):
             # Reference behavior: fixed-per-class mode retains num_classes points/query.
             self.num_with_anno_per_batch = NUM_CLASSES
         self.possibility, self.min_possibility = [], []
+        self.last_query_stats = None
 
     def __iter__(self) -> Iterator[dict]:
         worker = get_worker_info()
@@ -140,6 +143,7 @@ class DALESSpatiallyRegularDataset(IterableDataset):
         yielded = 0
         while yielded < self.samples_per_epoch:
             cloud_idx = int(np.argmin(self.min_possibility))
+            minimum_before = self.min_possibility[cloud_idx]
             point_idx = int(np.argmin(self.possibility[cloud_idx]))
             tree = self.store.input_trees[self.split][cloud_idx]
             points = np.asarray(tree.data)
@@ -160,6 +164,13 @@ class DALESSpatiallyRegularDataset(IterableDataset):
                 xyz = np.concatenate((xyz, xyz[duplicates]))
                 labels = np.concatenate((labels, labels[duplicates]))
                 queried_idx = np.concatenate((queried_idx, queried_idx[duplicates]))
+            self.last_query_stats = {
+                "cloud_index": cloud_idx,
+                "min_possibility_before": minimum_before,
+                "min_possibility_after": self.min_possibility[cloud_idx],
+                "replacement_upsampling": query_count < self.num_points,
+                "cloud_point_count": len(points),
+            }
             annotated = np.flatnonzero(labels != 0)
             if self.split == "training":
                 # The reference skips crops containing no usable supervised classes.

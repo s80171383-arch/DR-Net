@@ -1,4 +1,9 @@
 compatibility_mode: true
+batch_size: 4
+num_points: 65536
+noise_init: 3.5
+learning_rate: 0.01
+labeled_point: "100%"
 data:
   root: null  # Set this or pass --data-root; no machine-specific fallback.
   sub_grid_size: 0.32
