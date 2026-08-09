@@ -56,3 +56,27 @@ containing `xyz [B,N,3]`, raw labels and source indices `[B,N]`, cloud index/nam
 annotated XYZ `[B,M,3]`, mapped annotated targets `[B,M]`, and the established
 five-level prefix-sampled K16/K8/K12 hierarchy. Use `num_workers=0`; separate
 worker processes would incorrectly create independent possibility states.
+
+## Stage 4: Real DALES validation
+
+Stage 4 provides a deliberately single-batch, reproducible validation runner. It
+reuses `DALESCloudStore`, spatially regular sampling, the five-level hierarchy,
+the compatibility-mode DR-Net, augmentation, and WCE + Lovasz loss. It does not
+start epoch training or write a checkpoint. Run the data layer first from the
+repository root:
+
+```bash
+python -m pytorch.validate_real_dales --data-root /path/to/DALES_ROOT --data-only
+```
+
+Then validate one train, backward, optimizer, and eval step:
+
+```bash
+python -m pytorch.validate_real_dales --data-root /path/to/DALES_ROOT --device cuda
+```
+
+`--config` defaults to `pytorch/configs/dales.yaml`; `--split` accepts `training`
+or `validation`. `--batch-size` and `--num-points` are diagnostic overrides only,
+and the runner labels them as such. They are useful for identifying OOM limits
+but are not equivalent to the formal DALES configuration. DataLoader workers
+remain fixed at zero because possibility sampling is stateful.
