@@ -9,10 +9,23 @@ from .losses import combined_loss
 from .models import DRNet
 
 DEFAULT=Path(__file__).with_name("configs")/"isprs.yaml"
+HIERARCHY_RATIOS=(4,4,4,4,2)
+
+def validate_num_points(num_points):
+    """Reject diagnostic sizes that cannot support the faithful hierarchy."""
+    support_points=num_points
+    for level,ratio in enumerate(HIERARCHY_RATIOS,1):
+        if support_points<3:
+            raise ValueError(f'num_points={num_points} is too small: hierarchy level {level} has {support_points} support points, but Semantic Query requires fixed 3-NN support')
+        pooled_points=support_points//ratio
+        if pooled_points<1:
+            raise ValueError(f'num_points={num_points} is too small: hierarchy level {level} pool is empty')
+        support_points=pooled_points
+
 def parser():
     p=argparse.ArgumentParser(); p.add_argument('--data-root',required=True); p.add_argument('--config',default=str(DEFAULT)); p.add_argument('--device',choices=['cpu','cuda'],default='cpu'); p.add_argument('--data-only',action='store_true'); p.add_argument('--num-points',type=int); return p
 def run(args):
-    cfg=load_config(args.config); n=args.num_points or cfg['num_points']
+    cfg=load_config(args.config); n=args.num_points if args.num_points is not None else cfg['num_points']; validate_num_points(n)
     if args.device=='cuda' and not torch.cuda.is_available(): raise RuntimeError('CUDA requested but unavailable')
     store=ISPRSCloudStore(args.data_root,cfg['sub_grid_size'],cfg['labeled_point'],cfg['seed'])
     counts,freq,weights=store.class_statistics()

@@ -7,6 +7,7 @@ from pytorch.datasets.isprs import ISPRSCloudStore, make_isprs_dataloader, map_i
 from pytorch.isprs_runtime import confusion_matrix, metric_report
 from pytorch.losses import combined_loss
 from pytorch.models import DRNet
+from pytorch.validate_real_isprs import validate_num_points
 
 def fixture(tmp_path):
     root=tmp_path; folder=root/'input_0.450'; folder.mkdir()
@@ -27,8 +28,13 @@ def test_binary_ply_features_trees_projection_and_class_zero(tmp_path):
     counts,freq,weights=store.class_statistics(); assert counts.sum()==128 and np.isclose(freq.sum(),1) and np.isfinite(weights).all()
 
 def test_hierarchy_nine_logits_loss_backward_and_metrics(tmp_path):
-    store=ISPRSCloudStore(fixture(tmp_path)); batch=next(iter(make_isprs_dataloader(store,num_points=64,samples_per_epoch=1)))
-    assert len(batch['hierarchy'])==5; model=DRNet(input_dim=3,num_classes=9,num_points=64).train()
-    logits=model(batch['features'],batch['xyz_with_anno'],batch['hierarchy'],{'option':2}); assert logits.shape==(2,64,9)
+    store=ISPRSCloudStore(fixture(tmp_path)); batch=next(iter(make_isprs_dataloader(store,num_points=1024,samples_per_epoch=1)))
+    assert [level['xyz'].shape[1] for level in batch['hierarchy']]==[1024,256,64,16,4]
+    model=DRNet(input_dim=3,num_classes=9,num_points=1024).train()
+    logits=model(batch['features'],batch['xyz_with_anno'],batch['hierarchy'],{'option':2}); assert logits.shape==(2,1024,9)
     loss,_=combined_loss(logits,batch['labels_with_anno'].repeat(2,1),torch.ones(9)); loss.backward(); assert torch.isfinite(loss)
     report=metric_report(confusion_matrix(np.arange(9),np.arange(9))); assert report['miou']==1 and report['overall_accuracy']==1
+
+def test_num_points_too_small_for_fixed_semantic_query():
+    with np.testing.assert_raises_regex(ValueError,'num_points=64 is too small.*fixed 3-NN'):
+        validate_num_points(64)
