@@ -49,6 +49,27 @@ Inference writes `Area_2_subsampled_predictions.npy` and
 the projection pickle has no original labels. Paths are CLI arguments and no
 Windows/server path is embedded in code.
 
+## Stage 5B: exact KNN scalability
+
+`utils/knn.py` performs exact Euclidean KNN in query chunks. Each chunk is
+compared against the complete support set; only the temporary distance tensor
+is bounded (256 MiB by default), and neither `k` nor the neighbor definition is
+changed. The hierarchy builder computes its maximum K=16 neighborhood once per
+level and slices the nested K=8 and K=12 neighborhoods. Those hierarchy indices
+are then consumed directly by all encoder blocks. The only model-forward search
+is Semantic Query's fixed 3-NN from every annotated point to the complete point
+set at each hierarchy level.
+
+To repeat the real 65,536-point single-batch check (this is validation, not
+training), run:
+
+```bash
+python -m pytorch.validate_real_isprs \
+  --data-root /root/autodl-tmp/ISPRS \
+  --device cuda \
+  --num-points 65536
+```
+
 ## Reference mapping
 
 | TensorFlow `DR-Net.py` | PyTorch |
