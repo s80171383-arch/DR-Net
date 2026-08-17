@@ -1,0 +1,18 @@
+dataset: isprs
+compatibility_mode: true
+sub_grid_size: 0.450       # legacy ISPRS processed-directory name
+num_classes: 9             # ISPRS classes 0..8, all valid
+input_feature_dim: 3       # legacy get_tf_mapping2 uses centered XYZ as batch_features
+feature_mode: xyz          # legacy DR-Net input construction (stored attributes are audited only)
+num_points: 65536          # ConfigISPRS / original DR-Net sampling configuration
+batch_size: 4              # ConfigISPRS / original DR-Net training configuration
+val_batch_size: 4          # ConfigISPRS / original DR-Net validation configuration
+noise_init: 3.5            # ConfigISPRS spatial sampler
+learning_rate: 0.01        # ConfigISPRS optimizer initial rate
+labeled_point: "1%"      # global unstratified Area_1 sparse-annotation ratio
+seed: 0                    # deterministic PyTorch adapter setting
+epochs: 100
+train_steps: 500
+val_steps: 100
+sub_sampling_ratio: [4, 4, 4, 4, 2]
+d_out: [16, 64, 128, 256, 512]

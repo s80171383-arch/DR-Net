@@ -29,6 +29,11 @@ def run(args):
     if args.device=='cuda' and not torch.cuda.is_available(): raise RuntimeError('CUDA requested but unavailable')
     store=ISPRSCloudStore(args.data_root,cfg['sub_grid_size'],cfg['labeled_point'],cfg['seed'])
     counts,freq,weights=store.class_statistics()
+    annotations=store.annotation_statistics()
+    print(f"Area_1 total point count: {annotations['total']}")
+    print(f"requested labeled ratio: {annotations['requested_ratio']:.6f}")
+    print(f"global annotated point count / ratio: {annotations['annotated']} / {annotations['actual_ratio']:.6f}")
+    print('annotation count per class:',annotations['per_class'].tolist())
     print('class counts:',counts.tolist()); print('class frequencies:',freq.tolist()); print('WCE weights:',weights.tolist())
     for split,area in (("training","Area_1"),("validation","Area_2")):
         pts=np.asarray(store.input_trees[split][0].data); aux=store.input_features[split][0]; labels=store.input_labels[split][0]
@@ -36,7 +41,9 @@ def run(args):
         print(f'auxiliary {PLY_FEATURE_NAMES} range={aux.min(0).tolist()}..{aux.max(0).tolist()} histogram={np.bincount(labels,minlength=9).tolist()} KDTree point count={len(pts)} coarse KDTree point count={len(store.coarse_trees[split][0].data)}')
     proj=store.val_proj[0]; print(f'projection shape/range={proj.shape}/{(int(proj.min()),int(proj.max())) if proj.size else "empty"}')
     loader=make_isprs_dataloader(store,'training',1,n,1,cfg['noise_init'],cfg['seed'],cfg['feature_mode']); batch=next(iter(loader)); ds=loader.dataset
-    print('sample shape:',tuple(batch['features'].shape),'annotated shape:',tuple(batch['xyz_with_anno'].shape),'label range:',(int(batch['raw_labels'].min()),int(batch['raw_labels'].max())))
+    print('sample shape:',tuple(batch['features'].shape),'xyz_with_anno shape:',tuple(batch['xyz_with_anno'].shape),'labels_with_anno range:',(int(batch['labels_with_anno'].min()),int(batch['labels_with_anno'].max())))
+    validation=next(iter(make_isprs_dataloader(store,'validation',1,n,1,cfg['noise_init'],cfg['seed'],cfg['feature_mode'])))
+    print('validation annotated shape:',tuple(validation['xyz_with_anno'].shape))
     print('hierarchy shapes:',[tuple(x['xyz'].shape) for x in batch['hierarchy']]); print('possibility update:',ds.last_query_stats)
     if args.data_only: return
     device=torch.device(args.device); move=lambda x:x.to(device)
