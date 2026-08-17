@@ -39,10 +39,17 @@ class ISPRSCloudStore:
         self.input_labels: Dict[str, List[np.ndarray]] = {x: [] for x in SPLITS}
         self.input_features: Dict[str, List[np.ndarray]] = {x: [] for x in SPLITS}
         self.input_names: Dict[str, List[str]] = {x: [] for x in SPLITS}
+        self.annotation_masks: Dict[str, List[np.ndarray]] = {x: [] for x in SPLITS}
         self.val_proj, self.val_labels = [], []
         self.num_per_class = np.zeros(NUM_CLASSES, np.int64)
-        self.labeled_point, self.rng = str(labeled_point), np.random.default_rng(seed)
+        self.labeled_point = str(labeled_point)
+        allowed = {"100%": 1.0, "10%": .1, "1%": .01, "0.1%": .001}
+        if self.labeled_point not in allowed:
+            raise ValueError(f"labeled_point must be one of {sorted(allowed)}, got {self.labeled_point!r}")
+        self.labeled_ratio = allowed[self.labeled_point]
+        self.seed = int(seed)
         self._load()
+        self._initialize_annotation_masks()
 
     @staticmethod
     def _tree_points(tree, path):
@@ -99,6 +106,31 @@ class ISPRSCloudStore:
             raise ValueError(f"{projection}: original labels must be integer [0,8]")
         self.val_proj.append(proj.astype(np.int64)); self.val_labels.append(labels.astype(np.int64))
 
+    def _initialize_annotation_masks(self):
+        """Draw one global, unstratified Area_1 mask; Area_2 always stays dense."""
+        sizes = [len(labels) for labels in self.input_labels["training"]]
+        total = sum(sizes)
+        keep = max(int(total * self.labeled_ratio), 1)
+        if keep > total:
+            raise ValueError("Area_1 must contain at least one point")
+        selected = np.random.default_rng(self.seed).choice(total, keep, replace=False)
+        global_mask = np.zeros(total, dtype=bool)
+        global_mask[selected] = True
+        offsets = np.cumsum([0] + sizes)
+        self.annotation_masks["training"] = [global_mask[offsets[i]:offsets[i + 1]].copy()
+                                             for i in range(len(sizes))]
+        self.annotation_masks["validation"] = [np.ones(len(labels), dtype=bool)
+                                               for labels in self.input_labels["validation"]]
+
+    def annotation_statistics(self):
+        """Return global training annotation counts without changing the fixed mask."""
+        labels = np.concatenate(self.input_labels["training"])
+        mask = np.concatenate(self.annotation_masks["training"])
+        return {"total": int(labels.size), "requested_ratio": self.labeled_ratio,
+                "annotated": int(mask.sum()),
+                "actual_ratio": float(mask.mean()),
+                "per_class": np.bincount(labels[mask], minlength=NUM_CLASSES)}
+
     def class_statistics(self):
         total = self.num_per_class.sum()
         freq = self.num_per_class / total
@@ -122,7 +154,8 @@ class ISPRSSpatiallyRegularDataset(IterableDataset):
         rng = np.random.default_rng(self.seed)
         self.possibility = [rng.random(len(x))*1e-3 for x in self.store.input_labels[self.split]]
         self.min_possibility = [float(x.min()) for x in self.possibility]
-        for _ in range(self.samples_per_epoch):
+        emitted = 0
+        while emitted < self.samples_per_epoch:
             ci = int(np.argmin(self.min_possibility)); before = self.min_possibility[ci]
             pi = int(np.argmin(self.possibility[ci])); tree = self.store.input_trees[self.split][ci]
             points = np.asarray(tree.data); center = points[pi:pi+1]
@@ -136,10 +169,25 @@ class ISPRSSpatiallyRegularDataset(IterableDataset):
             if count < self.num_points:
                 dup = rng.choice(count, self.num_points-count, replace=True)
                 xyz=np.concatenate([xyz,xyz[dup]]); labels=np.concatenate([labels,labels[dup]]); idx=np.concatenate([idx,idx[dup]])
+            block_annotated = np.flatnonzero(self.store.annotation_masks[self.split][ci][idx])
+            target = self.num_points if self.split == "validation" else max(int(self.num_points * self.store.labeled_ratio), 1)
+            if block_annotated.size == 0:
+                # Advance spatial coverage but do not invent an annotation.
+                continue
+            if block_annotated.size > target:
+                annotated = rng.choice(block_annotated, target, replace=False)
+            elif block_annotated.size < target:
+                extra = rng.choice(block_annotated, target - block_annotated.size, replace=True)
+                annotated = np.concatenate((block_annotated, extra))
+                rng.shuffle(annotated)
+            else:
+                annotated = block_annotated
             aux = self.store.input_features[self.split][ci][idx]
             features = xyz if self.feature_mode == "xyz" else np.concatenate([xyz, aux], 1)
-            annotated = np.arange(len(labels)) # class zero is supervised, never an annotation sentinel
-            self.last_query_stats={"min_possibility_before":before,"min_possibility_after":self.min_possibility[ci],"replacement_upsampling":count<self.num_points}
+            self.last_query_stats={"min_possibility_before":before,"min_possibility_after":self.min_possibility[ci],
+                                   "replacement_upsampling":count<self.num_points,
+                                   "available_annotations":int(block_annotated.size), "annotation_target":target}
+            emitted += 1
             yield {"xyz":torch.from_numpy(xyz.astype(np.float32)), "features":torch.from_numpy(features.astype(np.float32)),
                    "aux_features":torch.from_numpy(aux.astype(np.float32)), "raw_labels":torch.from_numpy(labels),
                    "point_indices":torch.from_numpy(idx), "cloud_index":torch.tensor(ci),
