@@ -7,7 +7,14 @@ from pytorch.datasets.isprs import ISPRSCloudStore, make_isprs_dataloader, map_i
 from pytorch.isprs_runtime import confusion_matrix, metric_report
 from pytorch.losses import combined_loss
 from pytorch.models import DRNet
+from pytorch.train_isprs import paper_learning_rate
 from pytorch.validate_real_isprs import validate_num_points
+
+
+def test_drnet_paper_learning_rate_decay():
+    assert paper_learning_rate(0.01, 0) == 0.010000
+    assert paper_learning_rate(0.01, 1) == 0.009500
+    assert paper_learning_rate(0.01, 2) == 0.009025
 
 def fixture(tmp_path):
     root=tmp_path; folder=root/'input_0.450'; folder.mkdir()
