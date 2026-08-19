@@ -4,6 +4,68 @@ import torch
 from pytorch.utils.knn import build_hierarchy, knn_search
 
 
+@pytest.mark.parametrize("k", [8, 12, 16])
+@pytest.mark.parametrize("sizes", [(1, 64, 41), (2, 257, 83)])
+def test_ckdtree_matches_torch_neighbor_sets_without_ties(k, sizes):
+    batch, support_count, query_count = sizes
+    generator = torch.Generator().manual_seed(6000 + k + support_count)
+    support = torch.randn(batch, support_count, 3, generator=generator,
+                          dtype=torch.float64)
+    query = torch.randn(batch, query_count, 3, generator=generator,
+                        dtype=torch.float64)
+
+    reference = knn_search(support, query, k, backend="torch", query_chunk_size=17)
+    actual = knn_search(support, query, k, backend="ckdtree", workers=1)
+
+    assert actual.shape == reference.shape == (batch, query_count, k)
+    assert actual.dtype == reference.dtype == torch.int64
+    assert torch.equal(actual, reference), _parity_mismatch(reference, actual)
+
+
+def _parity_mismatch(reference, actual):
+    mismatches = torch.nonzero(reference != actual)
+    return f"KNN parity mismatch at {mismatches[:20].tolist()} ({len(mismatches)} entries)"
+
+
+def test_ckdtree_tied_boundary_is_mathematically_equivalent():
+    support = torch.tensor([[[-1., 0., 0.], [1., 0., 0.], [0., -1., 0.],
+                             [0., 1., 0.], [0., 0., 2.]]], dtype=torch.float64)
+    query = torch.zeros(1, 1, 3, dtype=torch.float64)
+    reference = knn_search(support, query, 2, backend="torch")
+    actual = knn_search(support, query, 2, backend="ckdtree", workers=1)
+
+    # Indices at the tied K boundary may differ, but both selected multisets of
+    # Euclidean distances must equal the mathematically minimal distances.
+    all_distances = torch.cdist(query, support)
+    expected_distances = all_distances.sort(dim=-1).values[..., :2]
+    reference_distances = all_distances.gather(-1, reference).sort(dim=-1).values
+    actual_distances = all_distances.gather(-1, actual).sort(dim=-1).values
+    assert torch.equal(reference_distances, expected_distances), _parity_mismatch(reference, actual)
+    assert torch.equal(actual_distances, expected_distances), _parity_mismatch(reference, actual)
+
+
+def test_hierarchy_ckdtree_matches_reference_at_every_level():
+    points = torch.randn(2, 1024, 3, generator=torch.Generator().manual_seed(712),
+                         dtype=torch.float64)
+    reference = build_hierarchy(points, (4, 4, 4), backend="torch")
+    actual = build_hierarchy(points, (4, 4, 4), backend="ckdtree", workers=1)
+
+    assert len(actual) == len(reference)
+    for level_number, (expected_level, actual_level) in enumerate(zip(reference, actual)):
+        assert expected_level.keys() == actual_level.keys()
+        for name in expected_level:
+            assert actual_level[name].shape == expected_level[name].shape
+            assert torch.equal(actual_level[name], expected_level[name]), (
+                f"hierarchy level {level_number} field {name}: "
+                + _parity_mismatch(expected_level[name], actual_level[name]))
+
+
+def test_ckdtree_rejects_cuda_and_unknown_backend():
+    points = torch.randn(1, 20, 3)
+    with pytest.raises(ValueError, match="backend must be"):
+        knn_search(points, points, 3, backend="approximate")
+
+
 @pytest.mark.parametrize("k", [3, 8, 12, 16])
 @pytest.mark.parametrize("same_points", [False, True])
 def test_chunked_knn_matches_full_cdist_cpu(k, same_points):

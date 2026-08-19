@@ -26,11 +26,11 @@ def main(argv=None):
         learning_rate=paper_learning_rate(cfg['learning_rate'],epoch)
         for group in optimizer.param_groups: group['lr']=learning_rate
         model.train(); losses=[]
-        loader=make_isprs_dataloader(store,'training',cfg['batch_size'],cfg['num_points'],cfg['train_steps']*cfg['batch_size'],cfg['noise_init'],cfg['seed']+epoch,cfg['feature_mode'])
+        loader=make_isprs_dataloader(store,'training',cfg['batch_size'],cfg['num_points'],cfg['train_steps']*cfg['batch_size'],cfg['noise_init'],cfg['seed']+epoch,cfg['feature_mode'],cfg.get('knn_backend','ckdtree'))
         for b in loader:
             h=[{k:v.to(device) for k,v in x.items()} for x in b['hierarchy']]; logits=model(b['features'].to(device),b['xyz_with_anno'].to(device),h,{"option":2}); target=b['labels_with_anno'].to(device).repeat(2,1); loss,_=combined_loss(logits,target,weights); optimizer.zero_grad(); loss.backward(); optimizer.step(); losses.append(float(loss))
         model.eval(); cm=np.zeros((9,9),np.int64)
-        val=make_isprs_dataloader(store,'validation',cfg['val_batch_size'],cfg['num_points'],cfg['val_steps']*cfg['val_batch_size'],cfg['noise_init'],cfg['seed'],cfg['feature_mode'])
+        val=make_isprs_dataloader(store,'validation',cfg['val_batch_size'],cfg['num_points'],cfg['val_steps']*cfg['val_batch_size'],cfg['noise_init'],cfg['seed'],cfg['feature_mode'],cfg.get('knn_backend','ckdtree'))
         with torch.no_grad():
             for b in val:
                 h=[{k:v.to(device) for k,v in x.items()} for x in b['hierarchy']]; pred=model(b['features'].to(device),b['xyz_with_anno'].to(device),h).argmax(-1).cpu().numpy(); cm+=confusion_matrix(b['labels_with_anno'].numpy(),pred)

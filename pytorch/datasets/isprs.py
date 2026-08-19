@@ -195,12 +195,14 @@ class ISPRSSpatiallyRegularDataset(IterableDataset):
                    "labels_with_anno":map_isprs_labels(labels[annotated]), "cloud_name":self.store.input_names[self.split][ci]}
 
 
-def isprs_collate(samples, ratios=(4,4,4,4,2)):
+def isprs_collate(samples, ratios=(4,4,4,4,2), knn_backend="ckdtree"):
     batch={k:([s[k] for s in samples] if k=="cloud_name" else torch.stack([s[k] for s in samples])) for k in samples[0]}
-    batch["hierarchy"]=build_hierarchy(batch["xyz"], ratios, ks=(16,8,12)); return batch
+    batch["hierarchy"]=build_hierarchy(batch["xyz"], ratios, ks=(16,8,12), backend=knn_backend); return batch
 
 
 def make_isprs_dataloader(store, split="training", batch_size=1, num_points=65536,
-                          samples_per_epoch=500, noise_init=3.5, seed=0, feature_mode="xyz"):
+                          samples_per_epoch=500, noise_init=3.5, seed=0, feature_mode="xyz",
+                          knn_backend="ckdtree"):
     ds=ISPRSSpatiallyRegularDataset(store,split,num_points,samples_per_epoch,noise_init,seed,feature_mode)
-    return DataLoader(ds,batch_size=batch_size,num_workers=0,collate_fn=isprs_collate)
+    collate = lambda samples: isprs_collate(samples, knn_backend=knn_backend)
+    return DataLoader(ds,batch_size=batch_size,num_workers=0,collate_fn=collate)

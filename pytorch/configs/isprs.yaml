@@ -6,6 +6,7 @@ input_feature_dim: 3       # legacy get_tf_mapping2 uses centered XYZ as batch_f
 feature_mode: xyz          # legacy DR-Net input construction (stored attributes are audited only)
 num_points: 65536          # ConfigISPRS / original DR-Net sampling configuration
 batch_size: 4              # ConfigISPRS / original DR-Net training configuration
+knn_backend: ckdtree     # exact optimized CPU hierarchy construction
 val_batch_size: 4          # ConfigISPRS / original DR-Net validation configuration
 noise_init: 3.5            # ConfigISPRS spatial sampler
 learning_rate: 0.01        # ConfigISPRS optimizer initial rate
